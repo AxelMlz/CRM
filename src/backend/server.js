@@ -9,7 +9,7 @@ const Contact = require("./models/contactModel")
 const Joi = require("joi");
 // const router = express.Router();
 const bcrypt = require("bcrypt");
-require('dotenv').config()
+require('dotenv').config({ path: "./.env"})
 const  {REACT_APP_THAT} = process.env
 app.use(express.json());
 
@@ -23,21 +23,17 @@ mongoose
     .then(() => console.log("Connected to MongoDB"));
 
     
-const newUserEntry = Joi.object({
+const newContactEntry = Joi.object({
     email: Joi.string()
       .email({ minDomainSegments: 2, tlds: { allow: ["com", "net", "fr"] } })
-      .max(100)
-      .required(),
-      password: Joi.string()
-      .min(8)
-      .required()
-      .regex(/^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[#?!@$%^&*-]).{8,}$/),
-      firstName: Joi.string().max(50).required(),
-      surName: Joi.string().max(50).required(),
+      .max(100).required(),
+      name: Joi.string().max(60).required(),
+      description:Joi.string().max(300),
+      category:Joi.number().required(),
     });
     
-    function validateNewEntry(req, res, next) {
-        const validation = newUserEntry.validate(req.body);
+    function validateNewContactEntry(req, res, next) {
+        const validation = newContactEntry.validate(req.body.contact);
   
     if (validation.error) {
       return res.status(400).json({
@@ -47,24 +43,61 @@ const newUserEntry = Joi.object({
     }
   
     next();
+    }
+
+const newRegistrationEntry = Joi.object({
+    email: Joi.string()
+      .email({ minDomainSegments: 2, tlds: { allow: ["com", "net", "fr"] } })
+      .max(100)
+      .required(),
+      password: Joi.string()
+      .min(6)
+      .required()
+      .regex(/^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[#?!@$%^&*-]).{6,}$/)
+    });
+    
+    function validateNewRegisterEntry(req, res, next) {
+        const validation = newRegistrationEntry.validate(req.body.register);
+  
+    if (validation.error) {
+      return res.status(400).json({
+        message: "Error 400",
+        description: validation.error.details[0].message,
+      });
+    }
+    next();
 }
 
-app.post("/register", async (req, res) => {
-          const hashedPassword = await bcrypt.hash(req.body.password, 12);
+app.post("/register",validateNewRegisterEntry, validateNewContactEntry, async (req, res) => {
+          const hashedPassword = await bcrypt.hash(req.body.register.password, 12);
   try {
-    await User.create({
-      email: req.body.email,
+    await Register.create({
+      email: req.body.register.email,
       password: hashedPassword,
-      firstname: req.body.firstname,
-      surname: req.body.surname,
-    });
+    })
+    ;
     res.status(201).json({
-        message: `User with the email adress "${req.body.email}" created`
+        message: `User with the email adress "${req.body.register.email}" created`
     })
   } catch (err) {
     return res.status(400).json({
       message: "email adress unavailable, pick a new one",
     });
+  }
+  try{
+    await Contact.create({
+        name: req.body.contact.name,
+        email: req.body.contact.email,
+        description: req.body.contact.description,
+        category: req.body.contact.category,
+        registerId: req.body.register._id
+      });
+      res.status(201).json({
+          message: `Contact ${req.body.register.name} has been created`
+      })
+  }
+  catch(err) {
+
   }
 });
 

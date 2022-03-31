@@ -4,20 +4,19 @@ const mongoose = require("mongoose");
 const contactSchema = new mongoose.Schema({
     name: {
         type: String,
-        maxLength: 42,
+        maxLength: 60,
     },
     email: {
         type: String,
-        maxLength: 40,
+        maxLength: 100,
         unique: true,
     },
     description: {
         type: String,
-        minLength: 8,
-
+        maxLength: 300,
     },
     registerId: [{
-        type: mongoose.Types.ObjectId, ref: "Register"
+        type: mongoose.Types.ObjectId, ref: "register"
     }],
     category: {
         type: Number
@@ -25,7 +24,7 @@ const contactSchema = new mongoose.Schema({
 
 })
 
-const Contact = mongoose.model("Contact", contactSchema);
+const Contact = mongoose.model("contact", contactSchema);
 
 // exporter le modèle
 module.exports = Contact;

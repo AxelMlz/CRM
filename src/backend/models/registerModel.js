@@ -4,21 +4,16 @@ const mongoose = require("mongoose");
 const registerSchema = new mongoose.Schema({
     email: {
         type: String,
-        maxLength: 40,
+        maxLength: 100,
         unique: true,
     },
     password: {
         type: String,
-        minLength: 8,
-
-    },
-    contact: [{
-        type: mongoose.Types.ObjectId, ref: "Register"
-    }]
-
+        minLength: 6,
+    }
 })
 
-const Register = mongoose.model("Register", registerSchema);
+const Register = mongoose.model("register", registerSchema);
 
 // exporter le modèle
 module.exports = Register;

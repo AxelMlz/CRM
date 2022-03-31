@@ -1,21 +1,24 @@
 const express = require('express');
 const app = express();
 const port = 8011;
+const jwt = require("jsonwebtoken");
+const cookieParser = require("cookie-parser");
 const mongoose = require("mongoose");
 const Register = require("./models/registerModel")
 const Contact = require("./models/contactModel")
+const {Random} = "./random.js" 
 // const Login = require("./models/loginModel")
 
 const Joi = require("joi");
 // const router = express.Router();
 const bcrypt = require("bcrypt");
-require('dotenv').config({ path: "./.env"})
-const  {REACT_APP_THAT} = process.env
+require('dotenv').config({ path: "../../.env"})
 app.use(express.json());
+app.use(cookieParser());
 
 mongoose
 .connect(
-        `mongodb+srv://axel_mlz:@database-backend.4wob9.mongodb.net/crm?retryWrites=true&w=majority`,
+       process.env.MONGO_URI,
         {
             useNewUrlParser: true,
         }
@@ -57,7 +60,7 @@ const newRegistrationEntry = Joi.object({
     });
     
     function validateNewRegisterEntry(req, res, next) {
-        const validation = newRegistrationEntry.validate(req.body.register);
+        const validation = newRegistrationEntry.validate(req.body);
   
     if (validation.error) {
       return res.status(400).json({
@@ -69,90 +72,100 @@ const newRegistrationEntry = Joi.object({
 }
 
 app.post("/register",validateNewRegisterEntry, validateNewContactEntry, async (req, res) => {
-          const hashedPassword = await bcrypt.hash(req.body.register.password, 12);
+          const hashedPassword = await bcrypt.hash(req.body.password, 12);
   try {
-    await Register.create({
-      email: req.body.register.email,
+     regisId = await Register.create({
+      email: req.body.email,
       password: hashedPassword,
     })
+    console.log(regisId)
     ;
     res.status(201).json({
-        message: `User with the email adress "${req.body.register.email}" created`
+        message: `User with the email adress "${req.body.email}" created`
     })
   } catch (err) {
     return res.status(400).json({
       message: "email adress unavailable, pick a new one",
     });
   }
-  try{
-    await Contact.create({
-        name: req.body.contact.name,
-        email: req.body.contact.email,
-        description: req.body.contact.description,
-        category: req.body.contact.category,
-        registerId: req.body.register._id
-      });
-      res.status(201).json({
-          message: `Contact ${req.body.register.name} has been created`
-      })
-  }
-  catch(err) {
-
-  }
+//   try{
+//     await Contact.create({
+//         name: req.body.contact.name,
+//         email: req.body.contact.email,
+//         description: req.body.contact.description,
+//         category: req.body.contact.category,
+//         registerId: req.body.register._id
+//       });
+//       res.status(201).json({
+//           message: `Contact ${req.body.register.name} has been created`
+//       })
+//   }
+//   catch(err) {
+//     return res.status(400).json({
+//         message: "email adress unavailable, pick a new one",
+//   })}
 });
 
-app.get("/", (req, res) => {
+app.post("/login", async (req, res) => {
+	const { email, password } = req.body;
 
-  const dataB= REACT_APP_THAT 
-    console.log(dataB)
-})
+	// 1 - Vérifier si le compte associé à l'email existe
+	const register = await Register.findOne({ email });
 
+	if (!register) {
+		return res.status(400).json({
+			message: "Invalid email or password",
+		});
+	}
 
-// Middleware activated by every request
-function debug( req, res, next){
-    console.log("requête reçue");
-    next()
-}
+	// 2 - Comparer le mot de passe au hash qui est dans la DB
+	const isPasswordValid = await bcrypt.compare(password, register.password);
+    
+    console.log(process.env.CLE)
+	if (!isPasswordValid) {
+		return res.status(400).json({
+			message: "Invalid email or password",
+		});
+	}
 
-// GET - Display the list of Users
+	// 3 - Générer un token
+	const token = jwt.sign({ id: register._id }, process.env.CLE);
 
-// app.get ("/register", debug, async (req,res)=> {
-// 	try { 
-// 		let signup= await Register.create(req.body);
-// 		res.send("User added");
-//     }catch(err){
-//             console.log(err)
-//             return res.send("error")
-//         }
-// })
+	// 4 - On met le token dans un cookie
+	res.cookie("jwt", token, { httpOnly: true, secure: false });
 
-app.post ("/register", debug, async (req,res)=> {
-	try { 
-		let signup= await Register.find();
-		res.send("User added");
-    }catch(err){
-            console.log(err)
-            return res.send("error")
-        }
-})
-
- app.get("/student/:Id", async (req, res) => {
-	 const student = await Register.findById(req.params.Id).populate("contact");
-	 
-	 res.json(student);
+	// 5 - Envoyer le cookie au client
+	res.json({
+		message: "Here is your cookie",
 	});
-	
-	// Sign Up
-// app.post("/signup", async (req, res) => {
-// 	try{
-// 		 await Adress.create(req.body);
-// 	}
-// 	catch(err){
-// 		console.log(err)
-// 		return res.send("error")
-// 	}
-// 	res.status(201).send("user created");
-// });
+});
+
+app.get("/auth", (req, res) => {
+	// 1 - Vérifier le token qui est dans le cookie
+	let data;
+    isLogged=false
+	try {
+		data = jwt.verify(req.cookies.jwt, process.env.CLE);
+        console.log(data)
+	} catch (err) {
+		return res.status(401).json({
+			message: "Your token is not valid",
+		});
+	}
+
+	// L'utilisateur est authentifié/autorisé
+	res.json({
+		message: "Votre requête a été acceptée",
+		data, isLogged: true
+	});
+});
+
+// DELETE - Log Out
+app.delete("/auth", (req, res) => {
+    
+        res.clearCookie("jwt");
+        res.end()
+})
 
 app.get("*", (req, res) => {
     res.status(404).send("Did not found the info");
@@ -161,3 +174,12 @@ app.get("*", (req, res) => {
  app.listen(port, () => {
     console.log('Server started on port: ' + port);
   });
+
+//   "contact":
+// {
+//     "name":"Hinata Uzumaki",
+//     "email":"hinatauzumaki@konoha.com",
+//     "description":"wife",
+//     "category":"0",
+//     "registerId":""
+// }

@@ -7,9 +7,11 @@
     "@testing-library/react": "^12.1.4",
     "@testing-library/user-event": "^13.5.0",
     "bcrypt": "^5.0.1",
+    "cookie-parser": "^1.4.6",
     "dotenv": "^16.0.0",
     "express": "^4.17.3",
     "joi": "^17.6.0",
+    "jsonwebtoken": "^8.5.1",
     "mongoose": "^6.2.9",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
@@ -43,6 +45,8 @@
     ]
   },
   "react-dotenv": {
-    "whitelist": ["REACT_APP_THAT"]
+    "whitelist": [
+      "REACT_APP_THAT"
+    ]
   }
 }
